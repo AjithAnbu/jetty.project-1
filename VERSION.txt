@@ -1,3 +1,83 @@
+jetty-9.1.0-v20130912 - 12 September 2013
+ + 395444 Websockets not working with Chrome (deflate problem)
+ + 411069 better set compiler defaults to 1.7, including webdefault.xml for jsp
+ + 411934 War overlay configuration assumes src/main/webapp exists
+ + 412205 SSL handshake failure leads to unresponsive UpgradeConnection
+ + 412934 Ignore any re-definition of an init-param within a descriptor
+ + 413387 onResponseHeaders is not called multiple times when multiple
+   redirects occur.
+ + 413484 setAttribute in nosql session management better handles _dirty status
+ + 413684 deprecated unsafe alias checkers
+ + 413737 hide stacktrace in ReferrerPushStrategyTest
+ + 414431 Avoid debug NPE race
+ + 414635 Modular start.d and jetty.base property
+ + 414898 Only upgrade v0 to v1 cookies on dquote , ; backslash space and tab
+   in the value
+ + 415047 Create URIs lazily in HttpClient.
+ + 415062 SelectorManager wakeup optimisation.
+ + 415131 Avoid autoboxing on debug
+ + 415192 <jsp-file> maps to JspPropertyGroupServlet instead of JspServlet
+ + 415194 Deployer gives management of context to context collection
+ + 415302 
+ + 415314 Jetty should not commit response on output if <
+   Response.setBufferSize() bytes are written
+ + 415330 Avoid multiple callbacks at EOF
+ + 415401 WebAppProvider: override XmlConfiguration.initializeDefaults
+ + 415548 migrate ProxyHTTPToSPDYTest to use HttpClient to avoid intermittent
+   NPE part 2
+ + 415605 fix status code logging for async requests
+ + 415641 Remove remaining calls to deprecated HttpTranspoert.send
+ + 415656 SPDY - add IdleTimeout per Stream functionality
+ + 415744 Reduce Future usage in websocket
+ + 415745 Include followed by forward using a PrintWriter incurs unnecessary
+   delay
+ + 415780 fix StreamAlreadyCommittedException in spdy build
+ + 415825 fix stop support in modular start setup
+ + 415826 start.jar replace --enable with --module-ini
+ + 415827 jetty-start / update --help text for new command line options
+ + 415830 jetty-start / add more TestUseCases for home + base + modules
+   configurations
+ + 415831 rename ini keyword from MODULES= to --module=
+ + 415832 jetty-start / fix ClassNotFound exception when starting from empty
+   base directory
+ + 415839 jetty-start / warning about need for --exec given when not needed by
+   default configuration
+ + 415899 jetty-start / add --lib=<cp> capability from Jetty 7/8
+ + 415913 support bootlib and download in modules
+ + 415999 Fix some of FindBugs warnings
+ + 416015 Handle null Accept-Language and other headers
+ + 416026 improve error handlig in SPDY parsers
+ + 416096 DefaultServlet leaves open file descriptors with file sizes greater
+   than response buffer
+ + 416102 Clean up of async sendContent process
+ + 416103 Added AllowSymLinkAliasChecker.java
+ + 416143 mod file format uses [type]
+ + 416242 respect persistence headers in ProxyHTTPSPDYConnection
+ + 416251 ProxyHTTPToSPDYConnection now sends a 502 to the client if it
+   receives a rst frame from the upstream spdy server
+ + 416266 HttpServletResponse.encodeURL() encodes on first request when only
+   SessionTrackingMode.COOKIE is used
+ + 416314 jetty async client wrong behaviour for HEAD Method + Redirect.
+ + 416321 handle failure during blocked committing write
+ + 416477 Improved consumeAll error handling
+ + 416568 Simplified servlet exception logging
+ + 416585 WebInfConfiguration examines webapp classloader first instead of its
+   parent when looking for container jars
+ + 416597 Allow classes and jars on the webappcontext extraclasspath to be
+   scanned for annotations
+ + 416663 Content-length set by resourcehandler
+ + 416679 Change warning to debug if no transaction manager present
+ + 416680 remove uncovered constraint warning
+ + 416681 Remove unnecessary security constraints in test-jetty-webapp
+ + 416763 WebSocket / Jsr Session.getPathParameters() is empty
+ + 416764 WebSocket / Jsr Session.getRequestURI() is missing scheme + host +
+   port + query parameters
+ + 416787 StringIndexOutOfBounds with a pathMap of ""
+ + 416812 Don't start WebSocketClient for every context
+ + 416990 JMX names statically unique
+ + 417022 Request attribute access to Server,HttpChannel & HttpConnection
+ + 417023 Add Default404Servlet if no default servlet set
+
 jetty-9.1.0.M0 - 15 August 2013
  + 393473 Add support for JSR-356 (javax.websocket) draft
  + 396562 Add an implementation of RequestLog that supports Slf4j
