@@ -50,7 +50,7 @@ public class JsrServerEndpointImpl implements EventDriverImpl
         if (config instanceof PathParamServerEndpointConfig)
         {
             PathParamServerEndpointConfig ppconfig = (PathParamServerEndpointConfig)config;
-            driver.setRequestParameters(ppconfig.getPathParamMap());
+            driver.setPathParameters(ppconfig.getPathParamMap());
         }
 
         return driver;

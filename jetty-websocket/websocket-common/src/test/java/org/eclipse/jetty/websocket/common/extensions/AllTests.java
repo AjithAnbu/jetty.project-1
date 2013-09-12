@@ -18,16 +18,15 @@
 
 package org.eclipse.jetty.websocket.common.extensions;
 
-import org.eclipse.jetty.websocket.common.extensions.compress.DeflateCompressionMethodTest;
-import org.eclipse.jetty.websocket.common.extensions.compress.MessageCompressionExtensionTest;
-import org.eclipse.jetty.websocket.common.extensions.compress.FrameCompressionExtensionTest;
+import org.eclipse.jetty.websocket.common.extensions.compress.DeflateFrameExtensionTest;
+import org.eclipse.jetty.websocket.common.extensions.compress.PerMessageDeflateExtensionTest;
 import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
 
 @RunWith(Suite.class)
 @Suite.SuiteClasses(
-        { ExtensionStackTest.class, DeflateCompressionMethodTest.class, MessageCompressionExtensionTest.class, FragmentExtensionTest.class,
-            IdentityExtensionTest.class, FrameCompressionExtensionTest.class })
+        { ExtensionStackTest.class, PerMessageDeflateExtensionTest.class, FragmentExtensionTest.class,
+            IdentityExtensionTest.class, DeflateFrameExtensionTest.class })
 public class AllTests
 {
     /* nothing to do here, its all done in the annotations */

@@ -18,7 +18,8 @@
 
 package org.eclipse.jetty.client.http;
 
-import org.eclipse.jetty.client.HttpClient;
+import java.util.concurrent.TimeoutException;
+
 import org.eclipse.jetty.client.HttpConnection;
 import org.eclipse.jetty.client.HttpDestination;
 import org.eclipse.jetty.client.HttpExchange;
@@ -39,10 +40,10 @@ public class HttpConnectionOverHTTP extends AbstractConnection implements Connec
     private boolean closed;
     private long idleTimeout;
 
-    public HttpConnectionOverHTTP(HttpClient client, EndPoint endPoint, HttpDestination destination)
+    public HttpConnectionOverHTTP(EndPoint endPoint, HttpDestination destination)
     {
-        super(endPoint, client.getExecutor(), client.isDispatchIO());
-        this.delegate = new Delegate(client, destination);
+        super(endPoint, destination.getHttpClient().getExecutor(), destination.getHttpClient().isDispatchIO());
+        this.delegate = new Delegate(destination);
         this.channel = new HttpChannelOverHTTP(this);
     }
 
@@ -93,19 +94,10 @@ public class HttpConnectionOverHTTP extends AbstractConnection implements Connec
 
         HttpExchange exchange = channel.getHttpExchange();
         if (exchange != null)
-            idleTimeout();
-        else
-            getHttpDestination().remove(this);
+            return exchange.getRequest().abort(new TimeoutException());
 
+        getHttpDestination().remove(this);
         return true;
-    }
-
-    protected void idleTimeout()
-    {
-        // TODO: we need to fail the exchange if we did not get an answer from the server
-        // TODO: however this mechanism does not seem to be available in SPDY if not subclassing SPDYConnection
-        // TODO: but the API (Session) does not have such facilities; perhaps we need to add a callback to ISession
-        channel.idleTimeout();
     }
 
     @Override
@@ -153,9 +145,9 @@ public class HttpConnectionOverHTTP extends AbstractConnection implements Connec
 
     private class Delegate extends HttpConnection
     {
-        private Delegate(HttpClient client, HttpDestination destination)
+        private Delegate(HttpDestination destination)
         {
-            super(client, destination);
+            super(destination);
         }
 
         @Override

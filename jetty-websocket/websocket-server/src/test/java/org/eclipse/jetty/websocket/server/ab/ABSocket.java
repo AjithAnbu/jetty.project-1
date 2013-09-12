@@ -27,6 +27,7 @@ import org.eclipse.jetty.websocket.api.WebSocketException;
 import org.eclipse.jetty.websocket.api.annotations.OnWebSocketConnect;
 import org.eclipse.jetty.websocket.api.annotations.OnWebSocketMessage;
 import org.eclipse.jetty.websocket.api.annotations.WebSocket;
+import org.eclipse.jetty.websocket.common.util.TextUtil;
 
 /**
  * Simple Echo WebSocket, using async writes of echo
@@ -38,15 +39,6 @@ public class ABSocket
 
     private Session session;
 
-    private String abbreviate(String message)
-    {
-        if (message.length() > 80)
-        {
-            return '"' + message.substring(0,80) + "\"...";
-        }
-        return '"' + message + '"';
-    }
-
     @OnWebSocketMessage
     public void onBinary(byte buf[], int offset, int len)
     {
@@ -54,7 +46,7 @@ public class ABSocket
 
         // echo the message back.
         ByteBuffer data = ByteBuffer.wrap(buf,offset,len);
-        this.session.getRemote().sendBytesByFuture(data);
+        this.session.getRemote().sendBytes(data,null);
     }
 
     @OnWebSocketConnect
@@ -74,14 +66,14 @@ public class ABSocket
             }
             else
             {
-                LOG.debug("onText() size={}, msg={}",message.length(),abbreviate(message));
+                LOG.debug("onText() size={}, msg={}",message.length(),TextUtil.hint(message));
             }
         }
 
         try
         {
             // echo the message back.
-            this.session.getRemote().sendStringByFuture(message);
+            this.session.getRemote().sendString(message,null);
         }
         catch (WebSocketException e)
         {

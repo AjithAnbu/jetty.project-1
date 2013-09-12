@@ -50,7 +50,6 @@ import org.eclipse.jetty.websocket.client.io.ConnectionManager;
 import org.eclipse.jetty.websocket.client.io.UpgradeListener;
 import org.eclipse.jetty.websocket.client.masks.Masker;
 import org.eclipse.jetty.websocket.client.masks.RandomMasker;
-import org.eclipse.jetty.websocket.client.masks.ZeroMasker;
 import org.eclipse.jetty.websocket.common.SessionFactory;
 import org.eclipse.jetty.websocket.common.WebSocketSessionFactory;
 import org.eclipse.jetty.websocket.common.events.EventDriver;
@@ -89,12 +88,7 @@ public class WebSocketClient extends ContainerLifeCycle
         this.policy = WebSocketPolicy.newClientPolicy();
         this.bufferPool = new MappedByteBufferPool();
         this.extensionRegistry = new WebSocketExtensionFactory(policy,bufferPool);
-        if(LOG.isDebugEnabled()) {
-            LOG.debug("Using ZeroMasker (DEBUG)");
-            this.masker = new ZeroMasker();
-        } else {
-            this.masker = new RandomMasker();
-        }
+        this.masker = new RandomMasker();
         this.eventDriverFactory = new EventDriverFactory(policy);
         this.sessionFactory = new WebSocketSessionFactory();
     }
@@ -153,6 +147,7 @@ public class WebSocketClient extends ContainerLifeCycle
         LOG.debug("connect websocket {} to {}",websocket,toUri);
 
         // Grab Connection Manager
+        initConnectionManager();
         ConnectionManager manager = getConnectionManager();
 
         // Setup Driver for user provided websocket
@@ -188,6 +183,28 @@ public class WebSocketClient extends ContainerLifeCycle
 
         // Return the future
         return promise;
+    }
+
+    private synchronized void initConnectionManager() throws IOException
+    {
+        if (connectionManager != null)
+        {
+            return;
+        }
+        try
+        {
+            connectionManager = newConnectionManager();
+            addBean(connectionManager);
+            connectionManager.start();
+        }
+        catch (IOException e)
+        {
+            throw e;
+        }
+        catch (Exception e)
+        {
+            throw new IOException(e);
+        }
     }
 
     @Override
@@ -227,12 +244,9 @@ public class WebSocketClient extends ContainerLifeCycle
             cookieStore = new HttpCookieStore.Empty();
         }
 
-        this.connectionManager = newConnectionManager();
-        addBean(this.connectionManager);
-
         super.doStart();
 
-        LOG.info("Started {}",this);
+        LOG.debug("Started {}",this);
     }
 
     @Override

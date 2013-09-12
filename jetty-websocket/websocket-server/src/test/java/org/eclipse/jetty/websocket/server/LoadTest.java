@@ -32,6 +32,7 @@ import org.eclipse.jetty.websocket.api.annotations.OnWebSocketConnect;
 import org.eclipse.jetty.websocket.api.annotations.OnWebSocketMessage;
 import org.eclipse.jetty.websocket.api.annotations.WebSocket;
 import org.eclipse.jetty.websocket.common.WebSocketFrame;
+import org.eclipse.jetty.websocket.common.frames.TextFrame;
 import org.eclipse.jetty.websocket.server.blockhead.BlockheadClient;
 import org.eclipse.jetty.websocket.servlet.WebSocketServlet;
 import org.eclipse.jetty.websocket.servlet.WebSocketServletFactory;
@@ -68,7 +69,7 @@ public class LoadTest
         @OnWebSocketMessage
         public void onWebSocketText(String message)
         {
-            session.getRemote().sendStringByFuture(message);
+            session.getRemote().sendString(message,null);
             long iter = count.incrementAndGet();
             if ((iter % 100) == 0)
             {
@@ -98,7 +99,7 @@ public class LoadTest
             {
                 for (int i = 0; i < iterations; i++)
                 {
-                    client.write(WebSocketFrame.text("msg-" + i));
+                    client.write(new TextFrame().setPayload("msg-" + i));
                     if ((i % 100) == 0)
                     {
                         LOG.info("Client Wrote {} msgs",i);

@@ -24,12 +24,14 @@ import java.nio.channels.IllegalSelectorException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.Enumeration;
 import java.util.Locale;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.servlet.RequestDispatcher;
 import javax.servlet.ServletOutputStream;
+import javax.servlet.SessionTrackingMode;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
@@ -137,10 +139,10 @@ public class Response implements HttpServletResponse
         Response response = _channel.getResponse();
         String contentType = httpContent.getContentType();
         if (contentType != null && !response.getHttpFields().containsKey(HttpHeader.CONTENT_TYPE.asString()))
-            response.getHttpFields().put(HttpHeader.CONTENT_TYPE, contentType);
-
+            setContentType(contentType);
+        
         if (httpContent.getContentLength() > 0)
-            response.getHttpFields().putLongField(HttpHeader.CONTENT_LENGTH, httpContent.getContentLength());
+            setLongContentLength(httpContent.getContentLength());
 
         String lm = httpContent.getLastModified();
         if (lm != null)
@@ -175,6 +177,10 @@ public class Response implements HttpServletResponse
     public void included()
     {
         _include.decrementAndGet();
+        if (_outputType == OutputType.WRITER)
+        {
+            _writer.reopen();
+        }
         _out.reopen();
     }
 
@@ -248,7 +254,7 @@ public class Response implements HttpServletResponse
             return null;
 
         // should not encode if cookies in evidence
-        if (request.isRequestedSessionIdFromCookie())
+        if ((sessionManager.isUsingCookies() && request.isRequestedSessionIdFromCookie()) || !sessionManager.isUsingURLs()) 
         {
             int prefix = url.indexOf(sessionURLPrefix);
             if (prefix != -1)
@@ -425,8 +431,11 @@ public class Response implements HttpServletResponse
 
                 writer.flush();
                 setContentLength(writer.size());
-                writer.writeTo(getOutputStream());
-                writer.destroy();
+                try (ServletOutputStream outputStream = getOutputStream())
+                {
+                    writer.writeTo(outputStream);
+                    writer.destroy();
+                }
             }
         }
         else if (code!=SC_PARTIAL_CONTENT)
@@ -811,6 +820,8 @@ public class Response implements HttpServletResponse
         {
             case WRITER:
                 _writer.close();
+                if (!_out.isClosed())
+                    _out.close();
                 break;
             case STREAM:
                 getOutputStream().close();

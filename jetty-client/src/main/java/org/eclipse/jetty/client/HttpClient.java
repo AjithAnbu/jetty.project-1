@@ -37,6 +37,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import org.eclipse.jetty.client.api.AuthenticationStore;
@@ -388,7 +389,10 @@ public class HttpClient extends ContainerLifeCycle
         Request newRequest = new HttpRequest(this, oldRequest.getConversationID(), newURI);
         newRequest.method(oldRequest.getMethod())
                 .version(oldRequest.getVersion())
-                .content(oldRequest.getContent());
+                .content(oldRequest.getContent())
+                .idleTimeout(oldRequest.getIdleTimeout(), TimeUnit.MILLISECONDS)
+                .timeout(oldRequest.getTimeout(), TimeUnit.MILLISECONDS)
+                .followRedirects(oldRequest.isFollowRedirects());
         for (HttpField header : oldRequest.getHeaders())
         {
             // We have a new URI, so skip the host header if present
@@ -446,7 +450,7 @@ public class HttpClient extends ContainerLifeCycle
         HttpDestination destination = destinations.get(address);
         if (destination == null)
         {
-            destination = transport.newHttpDestination(this, scheme, host, port);
+            destination = transport.newHttpDestination(scheme, host, port);
             if (isRunning())
             {
                 HttpDestination existing = destinations.putIfAbsent(address, destination);

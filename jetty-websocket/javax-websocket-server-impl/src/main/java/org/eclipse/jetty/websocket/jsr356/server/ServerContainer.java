@@ -18,8 +18,6 @@
 
 package org.eclipse.jetty.websocket.jsr356.server;
 
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import javax.websocket.DeploymentException;
 import javax.websocket.Endpoint;
 import javax.websocket.server.ServerEndpoint;
@@ -32,7 +30,6 @@ import org.eclipse.jetty.websocket.jsr356.ClientContainer;
 import org.eclipse.jetty.websocket.jsr356.JsrSessionFactory;
 import org.eclipse.jetty.websocket.jsr356.annotations.AnnotatedEndpointScanner;
 import org.eclipse.jetty.websocket.jsr356.endpoints.EndpointInstance;
-import org.eclipse.jetty.websocket.jsr356.endpoints.JsrEndpointImpl;
 import org.eclipse.jetty.websocket.jsr356.metadata.EndpointMetadata;
 import org.eclipse.jetty.websocket.jsr356.server.pathmap.WebSocketPathSpec;
 import org.eclipse.jetty.websocket.server.MappedWebSocketCreator;
@@ -44,7 +41,6 @@ public class ServerContainer extends ClientContainer implements javax.websocket.
 
     private final MappedWebSocketCreator mappedCreator;
     private final WebSocketServerFactory webSocketServerFactory;
-    private final Map<Class<?>, ServerEndpointMetadata> endpointServerMetadataCache = new ConcurrentHashMap<>();
 
     public ServerContainer(MappedWebSocketCreator creator, WebSocketServerFactory factory)
     {
@@ -53,17 +49,10 @@ public class ServerContainer extends ClientContainer implements javax.websocket.
         this.webSocketServerFactory = factory;
         EventDriverFactory eventDriverFactory = this.webSocketServerFactory.getEventDriverFactory();
         eventDriverFactory.addImplementation(new JsrServerEndpointImpl());
-        eventDriverFactory.addImplementation(new JsrEndpointImpl());
+        eventDriverFactory.addImplementation(new JsrServerExtendsEndpointImpl());
         this.webSocketServerFactory.addSessionFactory(new JsrSessionFactory(this));
     }
-
-    @Override
-    protected void doStop() throws Exception
-    {
-        endpointServerMetadataCache.clear();
-        super.doStop();
-    }
-
+    
     public EndpointInstance newClientEndpointInstance(Object endpoint, ServerEndpointConfig config, String path)
     {
         EndpointMetadata metadata = getClientEndpointMetadata(endpoint.getClass());
@@ -98,51 +87,45 @@ public class ServerContainer extends ClientContainer implements javax.websocket.
     @Override
     public void addEndpoint(ServerEndpointConfig config) throws DeploymentException
     {
-        LOG.debug("addEndpoint({})",config);
+        if (LOG.isDebugEnabled())
+        {
+            LOG.debug("addEndpoint({}) path={} endpoint={}",config,config.getPath(),config.getEndpointClass());
+        }
         ServerEndpointMetadata metadata = getServerEndpointMetadata(config.getEndpointClass(),config);
         addEndpoint(metadata);
     }
 
-    public ServerEndpointMetadata getServerEndpointMetadata(Class<?> endpoint, ServerEndpointConfig config) throws DeploymentException
+    public ServerEndpointMetadata getServerEndpointMetadata(final Class<?> endpoint, final ServerEndpointConfig config) throws DeploymentException
     {
-        synchronized (endpointServerMetadataCache)
+        ServerEndpointMetadata metadata = null;
+
+        ServerEndpoint anno = endpoint.getAnnotation(ServerEndpoint.class);
+        if (anno != null)
         {
-            ServerEndpointMetadata metadata = endpointServerMetadataCache.get(endpoint);
-            if (metadata != null)
-            {
-                return metadata;
-            }
-
-            ServerEndpoint anno = endpoint.getAnnotation(ServerEndpoint.class);
-            if (anno != null)
-            {
-                // Annotated takes precedence here
-                AnnotatedServerEndpointMetadata ametadata = new AnnotatedServerEndpointMetadata(this,endpoint,config);
-                AnnotatedEndpointScanner<ServerEndpoint,ServerEndpointConfig> scanner = new AnnotatedEndpointScanner<>(ametadata);
-                metadata = ametadata;
-                scanner.scan();
-            }
-            else if (Endpoint.class.isAssignableFrom(endpoint))
-            {
-                // extends Endpoint
-                @SuppressWarnings("unchecked")
-                Class<? extends Endpoint> eendpoint = (Class<? extends Endpoint>)endpoint;
-                metadata = new SimpleServerEndpointMetadata(eendpoint,config);
-            }
-            else
-            {
-                StringBuilder err = new StringBuilder();
-                err.append("Not a recognized websocket [");
-                err.append(endpoint.getName());
-                err.append("] does not extend @").append(ServerEndpoint.class.getName());
-                err.append(" or extend from ").append(Endpoint.class.getName());
-                throw new DeploymentException("Unable to identify as valid Endpoint: " + endpoint);
-            }
-
-            endpointServerMetadataCache.put(endpoint,metadata);
-
-            return metadata;
+            // Annotated takes precedence here
+            AnnotatedServerEndpointMetadata ametadata = new AnnotatedServerEndpointMetadata(endpoint,config);
+            AnnotatedEndpointScanner<ServerEndpoint, ServerEndpointConfig> scanner = new AnnotatedEndpointScanner<>(ametadata);
+            metadata = ametadata;
+            scanner.scan();
         }
+        else if (Endpoint.class.isAssignableFrom(endpoint))
+        {
+            // extends Endpoint
+            @SuppressWarnings("unchecked")
+            Class<? extends Endpoint> eendpoint = (Class<? extends Endpoint>)endpoint;
+            metadata = new SimpleServerEndpointMetadata(eendpoint,config);
+        }
+        else
+        {
+            StringBuilder err = new StringBuilder();
+            err.append("Not a recognized websocket [");
+            err.append(endpoint.getName());
+            err.append("] does not extend @").append(ServerEndpoint.class.getName());
+            err.append(" or extend from ").append(Endpoint.class.getName());
+            throw new DeploymentException("Unable to identify as valid Endpoint: " + endpoint);
+        }
+
+        return metadata;
     }
 
     @Override

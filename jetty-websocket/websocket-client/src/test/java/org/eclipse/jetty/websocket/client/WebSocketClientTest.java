@@ -34,6 +34,7 @@ import org.eclipse.jetty.websocket.api.UpgradeRequest;
 import org.eclipse.jetty.websocket.client.blockhead.BlockheadServer;
 import org.eclipse.jetty.websocket.client.blockhead.BlockheadServer.ServerConnection;
 import org.eclipse.jetty.websocket.common.WebSocketFrame;
+import org.eclipse.jetty.websocket.common.frames.TextFrame;
 import org.eclipse.jetty.websocket.common.io.FutureWriteCallback;
 import org.junit.After;
 import org.junit.Assert;
@@ -115,7 +116,7 @@ public class WebSocketClientTest
 
         Assert.assertThat("client.connectionManager.sessions.size",client.getConnectionManager().getSessions().size(),is(1));
 
-        cliSock.getSession().getRemote().sendStringByFuture("Hello World!");
+        cliSock.getSession().getRemote().sendString("Hello World!",null);
         srvSock.echoMessage(1,TimeUnit.MILLISECONDS,500);
         // wait for response from server
         cliSock.waitForMessage(500,TimeUnit.MILLISECONDS);
@@ -179,7 +180,7 @@ public class WebSocketClientTest
         Assert.assertThat("Session.upgradeResponse",sess.getUpgradeResponse(),notNullValue());
 
         // Have server send initial message
-        srvSock.write(WebSocketFrame.text("Hello World"));
+        srvSock.write(new TextFrame().setPayload("Hello World"));
 
         // Verify connect
         future.get(500,TimeUnit.MILLISECONDS);

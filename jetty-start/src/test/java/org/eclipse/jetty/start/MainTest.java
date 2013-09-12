@@ -18,107 +18,122 @@
 
 package org.eclipse.jetty.start;
 
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.hasItems;
-import static org.hamcrest.Matchers.notNullValue;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-
 import java.io.File;
-import java.io.IOException;
-import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
-import java.util.Vector;
 
 import org.eclipse.jetty.toolchain.test.MavenTestingUtils;
-import org.hamcrest.Matchers;
-import org.junit.Before;
+import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 
-/* ------------------------------------------------------------ */
-/**
- */
 public class MainTest
 {
-    /* ------------------------------------------------------------ */
-    /**
-     * @throws java.lang.Exception
-     */
-    @Before
-    public void setUp() throws Exception
+    private void addUseCasesHome(List<String> cmdLineArgs)
     {
-        File testJettyHome = MavenTestingUtils.getTestResourceDir("jetty.home");
-        System.setProperty("jetty.home",testJettyHome.getAbsolutePath());
+        File testJettyHome = MavenTestingUtils.getTestResourceDir("usecases/home");
+        cmdLineArgs.add("jetty.home=" + testJettyHome);
     }
 
     @Test
-    public void testProcessCommandLine() throws Exception
+    public void testBasicProcessing() throws Exception
     {
+        List<String> cmdLineArgs = new ArrayList<>();
+        addUseCasesHome(cmdLineArgs);
+        cmdLineArgs.add("jetty.port=9090");
+
         Main main = new Main();
-        List<String> xmls = main.processCommandLine(new String[] {});
+        StartArgs args = main.processCommandLine(cmdLineArgs.toArray(new String[cmdLineArgs.size()]));
+        BaseHome baseHome = main.getBaseHome();
+        System.err.println(args);
 
-        assertEquals("etc/jetty.xml",xmls.get(0));
-        assertEquals("etc/jetty-jmx.xml",xmls.get(1));
-        assertEquals("start.d","etc/jetty-testrealm.xml",xmls.get(2));
-        assertEquals("start.d","etc/jetty-contexts.xml",xmls.get(5));
-
-        Set<String> options = main.getConfig().getOptions();
-        assertThat(options,Matchers.contains("Server","ext","jmx","jsp","newOption","resources","websocket"));
+        ConfigurationAssert.assertConfiguration(baseHome,args,"assert-home.txt");
     }
 
     @Test
-    public void testBuildCommandLine() throws IOException, NoSuchFieldException, IllegalAccessException
+    public void testStopProcessing() throws Exception
     {
-        List<String> jvmArgs = new ArrayList<String>();
-        jvmArgs.add("--exec");
-        jvmArgs.add("-Xms1024m");
-        jvmArgs.add("-Xmx1024m");
-
-        List<String> xmls = new ArrayList<String>();
-        xmls.add("jetty.xml");
-        xmls.add("jetty-jmx.xml");
-        xmls.add("jetty-logging.xml");
+        List<String> cmdLineArgs = new ArrayList<>();
+        cmdLineArgs.add("--stop");
+        cmdLineArgs.add("STOP.PORT=10000");
+        cmdLineArgs.add("STOP.KEY=foo");
+        cmdLineArgs.add("STOP.WAIT=300");
 
         Main main = new Main();
-        main.addJvmArgs(jvmArgs);
+        StartArgs args = main.processCommandLine(cmdLineArgs.toArray(new String[cmdLineArgs.size()]));
+        System.err.println(args);
 
-        Classpath classpath = nastyWayToCreateAClasspathObject("/jetty/home with spaces/");
-        CommandLineBuilder cmd = main.buildCommandLine(classpath,xmls);
-        assertThat("CommandLineBuilder shouldn't be null",cmd,notNullValue());
-
-        List<String> commandArgs = cmd.getArgs();
-        assertThat("commandArgs should contain 11 elements",commandArgs.size(),equalTo(11));
-        assertThat("args does not contain -cp",commandArgs,hasItems("-cp"));
-        assertThat("Classpath should be correctly quoted and match expected value",commandArgs,
-                hasItems("/jetty/home with spaces/somejar.jar:/jetty/home with spaces/someotherjar.jar"));
-        assertThat("args does not contain --exec",commandArgs,hasItems("--exec"));
-        assertThat("CommandLine should contain jvmArgs",commandArgs,hasItems("-Xms1024m"));
-        assertThat("CommandLine should contain jvmArgs", commandArgs, hasItems("-Xmx1024m"));
-        assertThat("CommandLine should contain xmls",commandArgs,hasItems("jetty.xml"));
-        assertThat("CommandLine should contain xmls",commandArgs,hasItems("jetty-jmx.xml"));
-        assertThat("CommandLine should contain xmls", commandArgs, hasItems("jetty-logging.xml"));
-
-        String commandLine = cmd.toString();
-        assertThat("cmd.toString() should be properly escaped",commandLine,containsString("-cp /jetty/home\\ with\\ " +
-                "spaces/somejar.jar:/jetty/home\\ with\\ spaces/someotherjar.jar"));
-        assertThat("cmd.toString() doesn't contain xml config files",commandLine,containsString(" jetty.xml jetty-jmx.xml jetty-logging.xml"));
+        //Assert.assertEquals("--stop should not build module tree", 0, args.getEnabledModules().size());
+        Assert.assertEquals("--stop missing port","10000",args.getProperties().get("STOP.PORT"));
+        Assert.assertEquals("--stop missing key","foo",args.getProperties().get("STOP.KEY"));
+        Assert.assertEquals("--stop missing wait","300",args.getProperties().get("STOP.WAIT"));
     }
-
-    private Classpath nastyWayToCreateAClasspathObject(String jettyHome) throws NoSuchFieldException, IllegalAccessException
+    
+    @Test
+    public void testListConfig() throws Exception
     {
-        Classpath classpath = new Classpath();
-        Field classpathElements = Classpath.class.getDeclaredField("_elements");
-        classpathElements.setAccessible(true);
-        File file = new File(jettyHome + "somejar.jar");
-        File file2 = new File(jettyHome + "someotherjar.jar");
-        Vector<File> elements = new Vector<File>();
-        elements.add(file);
-        elements.add(file2);
-        classpathElements.set(classpath,elements);
-        return classpath;
+        List<String> cmdLineArgs = new ArrayList<>();
+        addUseCasesHome(cmdLineArgs);
+        cmdLineArgs.add("jetty.port=9090");
+        cmdLineArgs.add("--list-config");
+
+        Main main = new Main();
+        StartArgs args = main.processCommandLine(cmdLineArgs.toArray(new String[cmdLineArgs.size()]));
+        main.listConfig(args);
+    }
+    
+    @Test
+    @Ignore("Just a bit noisy for general testing")
+    public void testHelp() throws Exception
+    {
+        Main main = new Main();
+        main.usage(false);
     }
 
+    @Test
+    public void testWithCommandLine() throws Exception
+    {
+        List<String> cmdLineArgs = new ArrayList<>();
+
+        addUseCasesHome(cmdLineArgs);
+
+        // JVM args
+        cmdLineArgs.add("--exec");
+        cmdLineArgs.add("-Xms1024m");
+        cmdLineArgs.add("-Xmx1024m");
+        
+        // Arbitrary Libs
+        File extraJar = MavenTestingUtils.getTestResourceFile("extra-libs/example.jar");
+        File extraDir = MavenTestingUtils.getTestResourceDir("extra-resources");
+        cmdLineArgs.add(String.format("--lib=%s%s%s",extraJar.getAbsolutePath(),File.pathSeparatorChar,extraDir.getAbsolutePath()));
+
+        // Arbitrary XMLs
+        cmdLineArgs.add("jetty.xml");
+        cmdLineArgs.add("jetty-jmx.xml");
+        cmdLineArgs.add("jetty-logging.xml");
+
+        Main main = new Main();
+
+        StartArgs args = main.processCommandLine(cmdLineArgs.toArray(new String[cmdLineArgs.size()]));
+        BaseHome baseHome = main.getBaseHome();
+        System.err.println(args);
+
+        ConfigurationAssert.assertConfiguration(baseHome,args,"assert-home-with-jvm.txt");
+    }
+
+    @Test
+    public void testJettyHomeWithSpaces() throws Exception
+    {
+        List<String> cmdLineArgs = new ArrayList<>();
+
+        File homePath = MavenTestingUtils.getTestResourceDir("jetty home with spaces");
+        cmdLineArgs.add("jetty.home=" + homePath);
+
+        Main main = new Main();
+        StartArgs args = main.processCommandLine(cmdLineArgs.toArray(new String[cmdLineArgs.size()]));
+        BaseHome baseHome = main.getBaseHome();
+        System.err.println(args);
+
+        ConfigurationAssert.assertConfiguration(baseHome,args,"assert-home-with-spaces.txt");
+    }
 }

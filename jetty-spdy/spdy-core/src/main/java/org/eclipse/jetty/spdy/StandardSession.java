@@ -489,7 +489,8 @@ public class StandardSession implements ISession, Parser.Listener, Dumpable
     @Override
     public void onStreamException(StreamException x)
     {
-        notifyOnException(listener, x);
+        // TODO: rename to onFailure
+        notifyOnException(listener, x); //TODO: notify StreamFrameListener if exists?
         rst(new RstInfo(x.getStreamId(), x.getStreamStatus()), new Callback.Adapter());
     }
 
@@ -541,7 +542,9 @@ public class StandardSession implements ISession, Parser.Listener, Dumpable
     private IStream createStream(SynStreamFrame frame, StreamFrameListener listener, boolean local, Promise<Stream> promise)
     {
         IStream associatedStream = streams.get(frame.getAssociatedStreamId());
-        IStream stream = new StandardStream(frame.getStreamId(), frame.getPriority(), this, associatedStream, promise);
+        IStream stream = new StandardStream(frame.getStreamId(), frame.getPriority(), this, associatedStream,
+                scheduler, promise);
+        stream.setIdleTimeout(endPoint.getIdleTimeout());
         flowControlStrategy.onNewStream(this, stream);
 
         stream.updateCloseState(frame.isClose(), local);
@@ -802,7 +805,7 @@ public class StandardSession implements ISession, Parser.Listener, Dumpable
             if (listener != null)
             {
                 LOG.debug("Invoking callback with {} on listener {}", x, listener);
-                listener.onException(x);
+                listener.onFailure(this, x);
             }
         }
         catch (Exception xx)

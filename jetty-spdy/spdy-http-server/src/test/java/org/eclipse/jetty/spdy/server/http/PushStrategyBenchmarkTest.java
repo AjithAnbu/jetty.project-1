@@ -82,7 +82,7 @@ public class PushStrategyBenchmarkTest extends AbstractHTTPSPDYTest
     @Test
     public void benchmarkPushStrategy() throws Exception
     {
-        InetSocketAddress address = startHTTPServer(version, new PushStrategyBenchmarkHandler());
+        InetSocketAddress address = startHTTPServer(version, new PushStrategyBenchmarkHandler(), 30000);
 
         // Plain HTTP
         ConnectionFactory factory = new HttpConnectionFactory(new HttpConfiguration());
@@ -384,7 +384,7 @@ public class PushStrategyBenchmarkTest extends AbstractHTTPSPDYTest
         }
     }
 
-    private class TestListener extends Response.Listener.Empty
+    private class TestListener extends Response.Listener.Adapter
     {
         @Override
         public void onComplete(Result result)

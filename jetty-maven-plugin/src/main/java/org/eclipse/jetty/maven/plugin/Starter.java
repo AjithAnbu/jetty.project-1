@@ -20,6 +20,7 @@ package org.eclipse.jetty.maven.plugin;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.InputStream;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Enumeration;
@@ -360,7 +361,10 @@ public class Starter
             {
                 File f = new File(args[++i].trim());
                 props = new Properties();
-                props.load(new FileInputStream(f));
+                try (InputStream in = new FileInputStream(f))
+                {
+                    props.load(in);
+                }
             }
             
             //--token
@@ -452,23 +456,19 @@ public class Starter
     {
         if (wars == null || wars.isEmpty() || c == null)
             return null;
-        
+
         Artifact war = null;
         Iterator<Artifact> itor = wars.iterator();
         while(itor.hasNext() && war == null)
         {
             Artifact a = itor.next();
-            if (((c.getGroupId() == null && a.gid == null) || (c.getGroupId() != null && c.getGroupId().equals(a.gid)))
-            &&  ((c.getArtifactId() == null && a.aid == null) || (c.getArtifactId() != null && c.getArtifactId().equals(a.aid)))
-            &&  ((c.getClassifier() == null) || (c.getClassifier().equals(a.aid))))
-            {
+            if (c.matchesArtifact(a.gid, a.aid, null))
                 war = a;
-            }
         }
         return war;
     }
-    
-    
+
+
     /**
      * @param csv
      * @return

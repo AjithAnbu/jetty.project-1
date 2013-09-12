@@ -44,6 +44,19 @@ public class IncomingFramesCapture implements IncomingFrames
 
     public void assertFrameCount(int expectedCount)
     {
+        if (frames.size() != expectedCount)
+        {
+            // dump details
+            System.err.printf("Expected %d frame(s)%n",expectedCount);
+            System.err.printf("But actually captured %d frame(s)%n",frames.size());
+            for (int i = 0; i < frames.size(); i++)
+            {
+                Frame frame = frames.get(i);
+                System.err.printf(" [%d] Frame[%s] - %s%n", i, 
+                        OpCode.name(frame.getOpCode()),
+                        BufferUtil.toDetailString(frame.getPayload()));
+            }
+        }
         Assert.assertThat("Captured frame count",frames.size(),is(expectedCount));
     }
 
@@ -59,17 +72,18 @@ public class IncomingFramesCapture implements IncomingFrames
 
     public void assertHasFrame(byte op, int expectedCount)
     {
-        Assert.assertThat(OpCode.name(op),getFrameCount(op),is(expectedCount));
+        String msg = String.format("%s frame count",OpCode.name(op));
+        Assert.assertThat(msg,getFrameCount(op),is(expectedCount));
     }
 
     public void assertHasNoFrames()
     {
-        Assert.assertThat("Has no frames",frames.size(),is(0));
+        Assert.assertThat("Frame count",frames.size(),is(0));
     }
 
     public void assertNoErrors()
     {
-        Assert.assertThat("Has no errors",errors.size(),is(0));
+        Assert.assertThat("Error count",errors.size(),is(0));
     }
 
     public void dump()
@@ -129,8 +143,7 @@ public class IncomingFramesCapture implements IncomingFrames
     @Override
     public void incomingFrame(Frame frame)
     {
-        WebSocketFrame copy = new WebSocketFrame(frame);
-        frames.add(copy);
+        frames.add(WebSocketFrame.copy(frame));
     }
 
     public int size()

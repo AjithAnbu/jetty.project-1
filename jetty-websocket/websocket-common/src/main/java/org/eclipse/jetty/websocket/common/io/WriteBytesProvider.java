@@ -34,6 +34,8 @@ import org.eclipse.jetty.util.log.Log;
 import org.eclipse.jetty.util.log.Logger;
 import org.eclipse.jetty.websocket.api.extensions.Frame;
 import org.eclipse.jetty.websocket.common.Generator;
+import org.eclipse.jetty.websocket.common.OpCode;
+import org.eclipse.jetty.websocket.common.frames.DataFrame;
 
 /**
  * Interface for working with bytes destined for {@link EndPoint#write(Callback, ByteBuffer...)}
@@ -45,6 +47,8 @@ public class WriteBytesProvider implements Callback
         protected final AtomicBoolean failed = new AtomicBoolean(false);
         protected final Frame frame;
         protected final Callback callback;
+        /** holds reference to header ByteBuffer, as it needs to be released on success/failure */
+        private ByteBuffer headerBuffer;
 
         public FrameEntry(Frame frame, Callback callback)
         {
@@ -54,20 +58,51 @@ public class WriteBytesProvider implements Callback
 
         public ByteBuffer getHeaderBytes()
         {
-            return generator.generateHeaderBytes(frame);
+            ByteBuffer buf = generator.generateHeaderBytes(frame);
+            headerBuffer = buf;
+            return buf;
         }
 
         public ByteBuffer getPayloadWindow()
         {
+            // There is no need to release this ByteBuffer, as it is just a slice of the user provided payload
             return generator.getPayloadWindow(bufferSize,frame);
         }
 
         public void notifyFailure(Throwable t)
         {
+            freeBuffers();
             if (failed.getAndSet(true) == false)
             {
                 notifySafeFailure(callback,t);
             }
+        }
+
+        public void notifySucceeded()
+        {
+            freeBuffers();
+            if (callback == null)
+            {
+                return;
+            }
+            try
+            {
+                callback.succeeded();
+            }
+            catch (Throwable t)
+            {
+                LOG.debug(t);
+            }
+        }
+
+        public void freeBuffers()
+        {
+            if (headerBuffer != null)
+            {
+                generator.getBufferPool().release(headerBuffer);
+                headerBuffer = null;
+            }
+            releasePayloadBuffer(frame);
         }
 
         /**
@@ -97,8 +132,6 @@ public class WriteBytesProvider implements Callback
     private FrameEntry active;
     /** Tracking for failure */
     private Throwable failure;
-    /** The last requested buffer */
-    private ByteBuffer buffer;
     /** Is WriteBytesProvider closed to more WriteBytes being enqueued? */
     private AtomicBoolean closed;
 
@@ -160,12 +193,12 @@ public class WriteBytesProvider implements Callback
 
             FrameEntry entry = new FrameEntry(frame,callback);
 
-            switch (frame.getType())
+            switch (frame.getOpCode())
             {
-                case PING:
+                case OpCode.PING:
                     queue.addFirst(entry);
                     break;
-                case CLOSE:
+                case OpCode.CLOSE:
                     closed.set(true);
                     // drop the rest of the queue?
                     queue.addLast(entry);
@@ -178,41 +211,36 @@ public class WriteBytesProvider implements Callback
 
     public void failAll(Throwable t)
     {
+        // Collect entries for callback
+        List<FrameEntry> callbacks = new ArrayList<>();
+
         synchronized (this)
         {
-            boolean notified = false;
-
             // fail active (if set)
             if (active != null)
             {
-                active.notifyFailure(t);
-                notified = true;
+                FrameEntry entry = active;
+                active = null;
+                callbacks.add(entry);
             }
 
-            failure = t;
-
-            // fail past
-            for (FrameEntry fe : past)
-            {
-                fe.notifyFailure(t);
-                notified = true;
-            }
+            callbacks.addAll(past);
+            callbacks.addAll(queue);
 
             past.clear();
-
-            // fail others
-            for (FrameEntry fe : queue)
-            {
-                fe.notifyFailure(t);
-                notified = true;
-            }
-
             queue.clear();
+        }
 
-            if (notified)
+        // notify flush callback
+        if (!callbacks.isEmpty())
+        {
+            // TODO: always notify instead?
+            flushCallback.failed(t);
+
+            // notify entry callbacks
+            for (FrameEntry entry : callbacks)
             {
-                // notify flush callback
-                flushCallback.failed(t);
+                entry.notifyFailure(t);
             }
         }
     }
@@ -243,7 +271,7 @@ public class WriteBytesProvider implements Callback
      */
     public List<ByteBuffer> getByteBuffers()
     {
-        List<ByteBuffer> bufs = new ArrayList<>();
+        List<ByteBuffer> bufs = null;
         int count = 0;
         synchronized (this)
         {
@@ -261,11 +289,19 @@ public class WriteBytesProvider implements Callback
                     active = queue.pop();
 
                     // generate header
+                    if (bufs == null)
+                    {
+                        bufs = new ArrayList<>();
+                    }
                     bufs.add(active.getHeaderBytes());
                     count++;
                 }
 
                 // collect payload window
+                if (bufs == null)
+                {
+                    bufs = new ArrayList<>();
+                }
                 bufs.add(active.getPayloadWindow());
                 if (active.isDone())
                 {
@@ -308,6 +344,24 @@ public class WriteBytesProvider implements Callback
         }
     }
 
+    public void releasePayloadBuffer(Frame frame)
+    {
+        if (!frame.hasPayload())
+        {
+            return;
+        }
+
+        if (frame instanceof DataFrame)
+        {
+            DataFrame data = (DataFrame)frame;
+            if (data.isPooledBuffer())
+            {
+                ByteBuffer payload = frame.getPayload();
+                generator.getBufferPool().release(payload);
+            }
+        }
+    }
+
     /**
      * Set the buffer size used for generating ByteBuffers from the frames.
      * <p>
@@ -327,43 +381,30 @@ public class WriteBytesProvider implements Callback
     @Override
     public void succeeded()
     {
-        List<Callback> successNotifiers = new ArrayList<>();
+        // Collect entries for callback
+        List<FrameEntry> callbacks = new ArrayList<>();
 
         synchronized (this)
         {
-            // Release the active byte buffer first
-            generator.getBufferPool().release(buffer);
-
             if ((active != null) && (active.frame.remaining() <= 0))
             {
                 // All done with active FrameEntry
-                successNotifiers.add(active.callback);
-                // Forget active
+                FrameEntry entry = active;
                 active = null;
+                callbacks.add(entry);
             }
 
-            for (FrameEntry entry : past)
-            {
-                successNotifiers.add(entry.callback);
-            }
+            callbacks.addAll(past);
             past.clear();
         }
 
         // notify flush callback
         flushCallback.succeeded();
 
-        // Notify success (outside of synchronize lock)
-        for (Callback successCallback : successNotifiers)
+        // notify entry callbacks outside of synchronize
+        for (FrameEntry entry : callbacks)
         {
-            try
-            {
-                // notify of success
-                successCallback.succeeded();
-            }
-            catch (Throwable t)
-            {
-                LOG.warn("Callback failure",t);
-            }
+            entry.notifySucceeded();
         }
     }
 

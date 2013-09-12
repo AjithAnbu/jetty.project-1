@@ -23,6 +23,7 @@ import org.eclipse.jetty.util.log.Logger;
 import org.eclipse.jetty.websocket.api.WriteCallback;
 import org.eclipse.jetty.websocket.api.extensions.Frame;
 import org.eclipse.jetty.websocket.api.extensions.OutgoingFrames;
+import org.junit.rules.TestName;
 
 /**
  * Dummy implementation of {@link OutgoingFrames} used for testing
@@ -35,6 +36,11 @@ public class DummyOutgoingFrames implements OutgoingFrames
     public DummyOutgoingFrames(String id)
     {
         this.id = id;
+    }
+
+    public DummyOutgoingFrames(TestName testname)
+    {
+        this(testname.getMethodName());
     }
 
     @Override

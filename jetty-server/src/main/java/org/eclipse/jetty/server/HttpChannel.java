@@ -26,7 +26,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.servlet.DispatcherType;
 import javax.servlet.RequestDispatcher;
-import javax.servlet.WriteListener;
 
 import org.eclipse.jetty.http.HttpField;
 import org.eclipse.jetty.http.HttpFields;
@@ -140,6 +139,11 @@ public class HttpChannel<T> implements HttpParser.RequestHandler<T>, Runnable
         return _connector;
     }
 
+    public HttpTransport getHttpTransport()
+    {
+        return _transport;
+    }
+    
     public ByteBufferPool getByteBufferPool()
     {
         return _connector.getByteBufferPool();
@@ -761,8 +765,8 @@ public class HttpChannel<T> implements HttpParser.RequestHandler<T>, Runnable
             if (x instanceof EofException)
             {
                 LOG.debug(x);
-                _response.getHttpOutput().closed();
                 _callback.failed(x);
+                _response.getHttpOutput().closed();
             }
             else
             {
@@ -772,16 +776,16 @@ public class HttpChannel<T> implements HttpParser.RequestHandler<T>, Runnable
                     @Override
                     public void succeeded()
                     {
-                        _response.getHttpOutput().closed();
                         _callback.failed(x);
+                        _response.getHttpOutput().closed();
                     }
 
                     @Override
                     public void failed(Throwable th)
                     {
                         LOG.ignore(th);
-                        _response.getHttpOutput().closed();
                         _callback.failed(x);
+                        _response.getHttpOutput().closed();
                     }
                 });
             }

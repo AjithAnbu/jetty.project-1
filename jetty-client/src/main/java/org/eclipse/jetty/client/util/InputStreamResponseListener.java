@@ -19,7 +19,6 @@
 package org.eclipse.jetty.client.util;
 
 import java.io.IOException;
-
 import java.io.InputStream;
 import java.io.InterruptedIOException;
 import java.nio.ByteBuffer;
@@ -72,7 +71,7 @@ import org.eclipse.jetty.util.log.Logger;
  * If the consumer is slower than the producer, then the producer will block
  * until the client consumes.
  */
-public class InputStreamResponseListener extends Response.Listener.Empty
+public class InputStreamResponseListener extends Listener.Adapter
 {
     private static final Logger LOG = Log.getLogger(InputStreamResponseListener.class);
     private static final byte[] EOF = new byte[0];
@@ -157,7 +156,7 @@ public class InputStreamResponseListener extends Response.Listener.Empty
         {
             synchronized (this)
             {
-                if (length.get() >= maxBufferSize && failure == null && !closed)
+                while (length.get() >= maxBufferSize && failure == null && !closed)
                     wait();
                 // Re-read the values as they may have changed while waiting.
                 return failure == null && !closed;
@@ -165,6 +164,7 @@ public class InputStreamResponseListener extends Response.Listener.Empty
         }
         catch (InterruptedException x)
         {
+            Thread.currentThread().interrupt();
             return false;
         }
     }

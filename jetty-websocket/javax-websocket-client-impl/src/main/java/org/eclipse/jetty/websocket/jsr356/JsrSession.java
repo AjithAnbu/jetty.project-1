@@ -89,6 +89,7 @@ public class JsrSession extends WebSocketSession implements javax.websocket.Sess
         this.messageHandlerFactory = new MessageHandlerFactory();
         this.wrappers = new MessageHandlerWrapper[MessageType.values().length];
         this.messageHandlerSet = new HashSet<>();
+
     }
 
     @Override
@@ -284,12 +285,6 @@ public class JsrSession extends WebSocketSession implements javax.websocket.Sess
     public Map<String, List<String>> getRequestParameterMap()
     {
         return getUpgradeRequest().getParameterMap();
-    }
-
-    @Override
-    public URI getRequestURI()
-    {
-        return getUpgradeRequest().getRequestURI();
     }
 
     @Override

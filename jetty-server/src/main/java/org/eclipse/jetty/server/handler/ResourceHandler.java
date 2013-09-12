@@ -281,7 +281,7 @@ public class ResourceHandler extends HandlerWrapper
     	{
     		LOG.warn(e.toString());
             LOG.debug(e);
-            throw new IllegalArgumentException(stylesheet.toString());
+            throw new IllegalArgumentException(stylesheet);
     	}
     }
 
@@ -291,7 +291,7 @@ public class ResourceHandler extends HandlerWrapper
      */
     public String getCacheControl()
     {
-        return _cacheControl.toString();
+        return _cacheControl;
     }
 
     /* ------------------------------------------------------------ */
@@ -484,7 +484,7 @@ public class ResourceHandler extends HandlerWrapper
         String mime=_mimeTypes.getMimeByExtension(resource.toString());
         if (mime==null)
             mime=_mimeTypes.getMimeByExtension(request.getPathInfo());
-        doResponseHeaders(response,resource,mime!=null?mime.toString():null);
+        doResponseHeaders(response,resource,mime);
         if (_etags)
             baseRequest.getResponse().getHttpFields().put(HttpHeader.ETAG,etag);
         
@@ -522,6 +522,8 @@ public class ResourceHandler extends HandlerWrapper
                     @Override
                     public void failed(Throwable x)
                     {
+                        LOG.warn(x.toString());
+                        LOG.debug(x);
                         async.complete();
                     }   
                 };
@@ -536,6 +538,7 @@ public class ResourceHandler extends HandlerWrapper
                 }
                 else  // Do a blocking write of a channel (if available) or input stream
                 {
+                    // Close of the channel/inputstream is done by the async sendContent
                     ReadableByteChannel channel= resource.getReadableByteChannel();
                     if (channel!=null)
                         ((HttpOutput)out).sendContent(channel,callback);
@@ -599,19 +602,20 @@ public class ResourceHandler extends HandlerWrapper
             HttpFields fields = ((Response)response).getHttpFields();
 
             if (length>0)
-                fields.putLongField(HttpHeader.CONTENT_LENGTH,length);
+                ((Response)response).setLongContentLength(length);
 
             if (_cacheControl!=null)
                 fields.put(HttpHeader.CACHE_CONTROL,_cacheControl);
         }
         else
         {
-            if (length>0)
+            if (length>Integer.MAX_VALUE)
                 response.setHeader(HttpHeader.CONTENT_LENGTH.asString(),Long.toString(length));
+            else if (length>0)
+                response.setContentLength((int)length);
 
             if (_cacheControl!=null)
-                response.setHeader(HttpHeader.CACHE_CONTROL.asString(),_cacheControl.toString());
+                response.setHeader(HttpHeader.CACHE_CONTROL.asString(),_cacheControl);
         }
-
     }
 }

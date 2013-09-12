@@ -18,10 +18,6 @@
 
 package org.eclipse.jetty.http;
 
-import static org.eclipse.jetty.util.QuotedStringTokenizer.isQuoted;
-import static org.eclipse.jetty.util.QuotedStringTokenizer.quoteOnly;
-
-import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -47,11 +43,12 @@ import org.eclipse.jetty.util.BufferUtil;
 import org.eclipse.jetty.util.DateCache;
 import org.eclipse.jetty.util.LazyList;
 import org.eclipse.jetty.util.QuotedStringTokenizer;
-import org.eclipse.jetty.util.StringMap;
 import org.eclipse.jetty.util.StringUtil;
 import org.eclipse.jetty.util.Trie;
 import org.eclipse.jetty.util.log.Log;
 import org.eclipse.jetty.util.log.Logger;
+
+import static org.eclipse.jetty.util.QuotedStringTokenizer.isQuoted;
 
 
 /**
@@ -445,7 +442,7 @@ public class HttpFields implements Iterable<HttpField>
         {
             final HttpField f = _fields.get(i);
             
-            if (f.getName().equalsIgnoreCase(name))
+            if (f.getName().equalsIgnoreCase(name) && f.getValue()!=null)
             {
                 final int first=i;
                 return new Enumeration<String>()
@@ -461,7 +458,7 @@ public class HttpFields implements Iterable<HttpField>
                             while (i<_fields.size()) 
                             {
                                 field=_fields.get(i++);
-                                if (field.getName().equalsIgnoreCase(name))
+                                if (field.getName().equalsIgnoreCase(name) && field.getValue()!=null)
                                     return true;
                             }
                             field=null;
@@ -649,14 +646,15 @@ public class HttpFields implements Iterable<HttpField>
      *
      * @param name the field to remove
      */
-    public void remove(HttpHeader name)
+    public HttpField remove(HttpHeader name)
     {
         for (int i=_fields.size();i-->0;)
         {
             HttpField f=_fields.get(i);
             if (f.getHeader()==name)
-                _fields.remove(i);
+                return _fields.remove(i);
         }
+        return null;
     }
 
     /**
@@ -664,14 +662,15 @@ public class HttpFields implements Iterable<HttpField>
      *
      * @param name the field to remove
      */
-    public void remove(String name)
+    public HttpField remove(String name)
     {
         for (int i=_fields.size();i-->0;)
         {
             HttpField f=_fields.get(i);
             if (f.getName().equalsIgnoreCase(name))
-                _fields.remove(i);
+                return _fields.remove(i);
         }
+        return null;
     }
 
     /**
@@ -901,7 +900,7 @@ public class HttpFields implements Iterable<HttpField>
             HttpField field=i.next();
             if (field.getHeader()==HttpHeader.SET_COOKIE)
             {
-                String val = (field.getValue() == null ? null : field.getValue().toString());
+                String val = field.getValue();
                 if (val!=null && val.startsWith(name_equals))
                 {
                     //existing cookie has same name, does it also match domain and path?

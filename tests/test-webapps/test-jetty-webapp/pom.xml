@@ -147,7 +147,7 @@
           <loginServices>
             <loginService implementation="org.eclipse.jetty.security.HashLoginService">
               <name>Test Realm</name>
-              <config>src/main/config/etc/realm.properties</config>
+              <config>src/main/config/demo-base/etc/realm.properties</config>
             </loginService>
           </loginServices>
         </configuration>
@@ -247,6 +247,12 @@
       <groupId>javax.servlet</groupId>
       <artifactId>jstl</artifactId>
       <version>1.2</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>javax.websocket</groupId>
+      <artifactId>javax.websocket-api</artifactId>
+      <version>1.0</version>
       <scope>provided</scope>
     </dependency>
   </dependencies>

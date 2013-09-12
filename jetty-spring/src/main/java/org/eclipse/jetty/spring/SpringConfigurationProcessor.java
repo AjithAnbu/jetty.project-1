@@ -30,6 +30,11 @@ import org.eclipse.jetty.xml.ConfigurationProcessor;
 import org.eclipse.jetty.xml.ConfigurationProcessorFactory;
 import org.eclipse.jetty.xml.XmlConfiguration;
 import org.eclipse.jetty.xml.XmlParser;
+import org.springframework.beans.BeanWrapper;
+import org.springframework.beans.PropertyValues;
+import org.springframework.beans.factory.config.BeanDefinition;
+import org.springframework.beans.factory.support.DefaultListableBeanFactory;
+import org.springframework.beans.factory.xml.XmlBeanDefinitionReader;
 import org.springframework.beans.factory.xml.XmlBeanFactory;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
@@ -59,17 +64,16 @@ public class SpringConfigurationProcessor implements ConfigurationProcessor
 {
     private static final Logger LOG = Log.getLogger(SpringConfigurationProcessor.class);
 
-    private Map<String, Object> _idMap;
-    private Map<String, String> _propertyMap;
-    private XmlBeanFactory _beanFactory;
+    private XmlConfiguration _configuration;
+    private DefaultListableBeanFactory _beanFactory;
     private String _main;
 
-    public void init(URL url, XmlParser.Node config, Map<String, Object> idMap, Map<String, String> properties)
+    @Override
+    public void init(URL url, XmlParser.Node config, XmlConfiguration configuration)
     {
         try
         {
-            _idMap = idMap;
-            _propertyMap = properties;
+            _configuration = configuration;
 
             Resource resource = url != null
                     ? new UrlResource(url)
@@ -78,7 +82,17 @@ public class SpringConfigurationProcessor implements ConfigurationProcessor
                     "<!DOCTYPE beans PUBLIC \"-//SPRING//DTD BEAN//EN\" \"http://www.springframework.org/dtd/spring-beans.dtd\">" +
                     config).getBytes("UTF-8"));
 
-            _beanFactory = new XmlBeanFactory(resource);
+            _beanFactory = new DefaultListableBeanFactory()
+            {
+                @Override
+                protected void applyPropertyValues(String beanName, BeanDefinition mbd, BeanWrapper bw, PropertyValues pvs)
+                {
+                    _configuration.initializeDefaults(bw.getWrappedInstance());
+                    super.applyPropertyValues(beanName, mbd, bw, pvs);
+                }
+            };
+
+            new XmlBeanDefinitionReader(_beanFactory).loadBeanDefinitions(resource);
         }
         catch (Exception e)
         {
@@ -86,6 +100,7 @@ public class SpringConfigurationProcessor implements ConfigurationProcessor
         }
     }
 
+    @Override
     public Object configure(Object obj) throws Exception
     {
         doConfigure();
@@ -97,6 +112,7 @@ public class SpringConfigurationProcessor implements ConfigurationProcessor
      *
      * @see org.eclipse.jetty.xml.ConfigurationProcessor#configure()
      */
+    @Override
     public Object configure() throws Exception
     {
         doConfigure();
@@ -105,7 +121,7 @@ public class SpringConfigurationProcessor implements ConfigurationProcessor
 
     private void doConfigure()
     {
-        _beanFactory.registerSingleton("properties", _propertyMap);
+        _beanFactory.registerSingleton("properties", _configuration.getProperties());
 
         // Look for the main bean;
         for (String bean : _beanFactory.getBeanDefinitionNames())
@@ -122,25 +138,26 @@ public class SpringConfigurationProcessor implements ConfigurationProcessor
             _main = _beanFactory.getBeanDefinitionNames()[0];
 
         // Register id beans as singletons
-        LOG.debug("idMap {}", _idMap);
-        for (String id : _idMap.keySet())
+        Map<String, Object> idMap = _configuration.getIdMap();
+        LOG.debug("idMap {}", idMap);
+        for (String id : idMap.keySet())
         {
             LOG.debug("register {}", id);
-            _beanFactory.registerSingleton(id, _idMap.get(id));
+            _beanFactory.registerSingleton(id, idMap.get(id));
         }
 
         // Apply configuration to existing singletons
-        for (String id : _idMap.keySet())
+        for (String id : idMap.keySet())
         {
             if (_beanFactory.containsBeanDefinition(id))
             {
                 LOG.debug("reconfigure {}", id);
-                _beanFactory.configureBean(_idMap.get(id), id);
+                _beanFactory.configureBean(idMap.get(id), id);
             }
         }
 
         // Extract id's for next time.
         for (String id : _beanFactory.getSingletonNames())
-            _idMap.put(id, _beanFactory.getBean(id));
+            idMap.put(id, _beanFactory.getBean(id));
     }
 }

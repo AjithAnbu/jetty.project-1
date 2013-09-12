@@ -10,7 +10,7 @@
   <url>http://www.eclipse.org/jetty</url>
   <packaging>pom</packaging>
   <properties>
-    <assembly-directory>target/distribution</assembly-directory>
+    <assembly-directory>${basedir}/target/distribution</assembly-directory>
     <jetty-setuid-version>1.0.1</jetty-setuid-version>
   </properties>
   <build>
@@ -101,7 +101,7 @@
                   <type>war</type>
                   <overWrite>true</overWrite>
                   <includes>**</includes>
-                  <outputDirectory>${assembly-directory}/webapps.demo</outputDirectory>
+                  <outputDirectory>${assembly-directory}/demo-base/webapps</outputDirectory>
                   <destFileName>test.war</destFileName>
                 </artifactItem>
                 <artifactItem>
@@ -111,7 +111,7 @@
                   <type>war</type>
                   <overWrite>true</overWrite>
                   <includes>**</includes>
-                  <outputDirectory>${assembly-directory}/webapps.demo</outputDirectory>
+                  <outputDirectory>${assembly-directory}/demo-base/webapps</outputDirectory>
                   <destFileName>test-jaas.war</destFileName>
                 </artifactItem>
                 <artifactItem>
@@ -121,7 +121,7 @@
                   <type>war</type>
                   <overWrite>true</overWrite>
                   <includes>**</includes>
-                  <outputDirectory>${assembly-directory}/webapps.demo</outputDirectory>
+                  <outputDirectory>${assembly-directory}/demo-base/webapps</outputDirectory>
                   <destFileName>test-jndi.war</destFileName>
                 </artifactItem>
                 <artifactItem>
@@ -131,7 +131,7 @@
                   <type>war</type>
                   <overWrite>true</overWrite>
                   <includes>**</includes>
-                  <outputDirectory>${assembly-directory}/webapps.demo</outputDirectory>
+                  <outputDirectory>${assembly-directory}/demo-base/webapps</outputDirectory>
                   <destFileName>test-spec.war</destFileName>
                 </artifactItem>
                 <artifactItem>
@@ -141,7 +141,7 @@
                   <type>war</type>
                   <overWrite>true</overWrite>
                   <includes>**</includes>
-                  <outputDirectory>${assembly-directory}/webapps.demo</outputDirectory>
+                  <outputDirectory>${assembly-directory}/demo-base/webapps</outputDirectory>
                   <destFileName>xref-proxy.war</destFileName>
                 </artifactItem>
                 <artifactItem>
@@ -151,7 +151,7 @@
                   <type>war</type>
                   <overWrite>true</overWrite>
                   <includes>**</includes>
-                  <outputDirectory>${assembly-directory}/webapps.demo</outputDirectory>
+                  <outputDirectory>${assembly-directory}/demo-base/webapps</outputDirectory>
                   <destFileName>async-rest.war</destFileName>
                 </artifactItem>
                 <artifactItem>
@@ -223,6 +223,7 @@
                   <outputDirectory>${assembly-directory}</outputDirectory>
                 </artifactItem>
               </artifactItems>
+              <excludes>META-INF/**</excludes>
             </configuration>
           </execution>
 
@@ -244,6 +245,7 @@
                   <outputDirectory>${assembly-directory}</outputDirectory>
                 </artifactItem>
               </artifactItems>
+              <excludes>META-INF/**</excludes>
             </configuration>
           </execution>
 
@@ -265,6 +267,7 @@
                   <outputDirectory>${assembly-directory}</outputDirectory>
                 </artifactItem>
               </artifactItems>
+              <excludes>META-INF/**</excludes>
             </configuration>
           </execution>
 
@@ -286,6 +289,7 @@
                   <outputDirectory>${assembly-directory}</outputDirectory>
                 </artifactItem>
               </artifactItems>
+              <excludes>META-INF/**</excludes>
             </configuration>
           </execution>
 
@@ -297,8 +301,8 @@
             </goals>
             <configuration>
               <includeGroupIds>org.eclipse.jetty</includeGroupIds>
-              <excludeGroupIds>org.eclipse.jetty.orbit,org.eclipse.jetty.spdy,org.eclipse.jetty.websocket</excludeGroupIds>
-              <excludeArtifactIds>jetty-all,jetty-start,jetty-monitor</excludeArtifactIds>
+              <excludeGroupIds>org.eclipse.jetty.orbit,org.eclipse.jetty.spdy,org.eclipse.jetty.websocket,org.eclipse.jetty.toolchain</excludeGroupIds>
+              <excludeArtifactIds>jetty-all,jetty-jsp,jetty-start,jetty-monitor</excludeArtifactIds>
               <includeTypes>jar</includeTypes>
               <outputDirectory>${assembly-directory}/lib</outputDirectory>
             </configuration>
@@ -423,7 +427,7 @@
             </goals>
             <configuration>
               <includeGroupIds>org.eclipse.jetty.orbit</includeGroupIds>
-              <includeArtifactIds>javax.activation</includeArtifactIds>
+              <includeArtifactIds>javax.activation,javax.mail.glassfish</includeArtifactIds>
               <includeTypes>jar</includeTypes>
               <outputDirectory>${assembly-directory}/lib/jndi</outputDirectory>
             </configuration>
@@ -456,6 +460,28 @@
             </configuration>
           </execution>
         </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <executions>
+          <execution>
+            <phase>process-classes</phase>
+            <goals>
+              <goal>java</goal>
+            </goals>
+          </execution>
+        </executions>
+        <configuration>
+          <mainClass>org.eclipse.jetty.start.Main</mainClass>
+          <arguments>
+            <argument>--debug</argument>
+            <argument>jetty.home=${assembly-directory}</argument>
+            <argument>jetty.base=${assembly-directory}</argument>
+            <argument>--module-start-ini=server,deploy,websocket,jsp,ext,resources</argument>
+            <argument>--module-ini=http</argument>
+          </arguments>
+        </configuration>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -507,6 +533,10 @@
     <dependency>
       <groupId>org.eclipse.jetty.orbit</groupId>
       <artifactId>javax.activation</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.eclipse.jetty.orbit</groupId>
+      <artifactId>javax.mail.glassfish</artifactId>
     </dependency>
     <dependency>
       <groupId>javax.transaction</groupId>
@@ -610,6 +640,11 @@
     <dependency>
       <groupId>org.eclipse.jetty</groupId>
       <artifactId>jetty-proxy</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.eclipse.jetty</groupId>
+      <artifactId>jetty-overlay-deployer</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
